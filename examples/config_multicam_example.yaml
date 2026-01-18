@@ -1,0 +1,69 @@
+# ForceUMI Multi-Camera Configuration Example
+# This example demonstrates how to configure multiple cameras
+
+devices:
+  # Multi-camera configuration
+  cameras:
+    - name: "wrist_camera"     # Camera mounted on robot wrist
+      device_id: 0             # First USB camera
+      width: 640
+      height: 480
+      fps: 30
+    
+    - name: "static_camera"    # Fixed camera for external view
+      device_id: 2             # Second USB camera (device_id may vary)
+      width: 640
+      height: 480
+      fps: 30
+    
+    # Add more cameras as needed
+    # - name: "gripper_camera"
+    #   device_id: 4
+    #   width: 640
+    #   height: 480
+    #   fps: 30
+  
+  pose_sensor:
+    # PyTracker (VR tracking) configuration
+    device_name: "tracker_1"
+    config_file: null
+    gripper_port: null
+  
+  force_sensor:
+    # PyForce (Sunrise sensor) configuration
+    ip_addr: "192.168.0.108"
+    port: 4008
+    sample_rate: 100
+
+data:
+  save_dir: ./data
+  compression: gzip
+  compression_level: 4
+  auto_save: true
+
+collector:
+  max_fps: 30.0
+  warmup_duration: 2.0
+
+gui:
+  window_title: "ForceUMI Multi-Camera Data Collection"
+  image_display_size: [640, 480]
+  force_plot_length: 500
+  update_interval: 33
+
+# HDF5 Output Format:
+# With multi-camera configuration above, the HDF5 file will contain:
+#   - image_wrist_camera       [T, H, W, 3]
+#   - image_static_camera      [T, H, W, 3]
+#   - timestamp_camera_wrist_camera   [T]
+#   - timestamp_camera_static_camera  [T]
+#   - state                    [T, 7]
+#   - action                   [T, 7]
+#   - force                    [T, 6]
+#   - timestamp                [T]
+#   - timestamp_pose           [T]
+#   - timestamp_force          [T]
+#
+# For single camera, the format remains backward compatible:
+#   - image                    [T, H, W, 3]
+#   - timestamp_camera         [T]

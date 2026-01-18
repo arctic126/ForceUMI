@@ -1,482 +1,221 @@
-# ForceUMI Data Collection System
+# ForceUMI 数据采集系统
 
-ForceUMI is a comprehensive data collection system for robotic arm devices, supporting synchronized acquisition of RGB images, 6DOF poses, actions, and force sensor data.
+---
 
-## Features
+## 安装
 
-- 📸 **Multi-modal Data Collection**: RGB fisheye camera (single or multiple), UMI pose (6DOF), action (delta pose), force (6-axis force sensor)
-- 🎥 **Multi-Camera Support**: Support for multiple synchronized cameras with independent windows and timestamps
-- 💾 **HDF5 Storage**: Efficient data storage format with compression and fast access
-- 🎨 **Real-time Visualization**: OpenCV-based GUI with live image display, force curves, and pose data (no Qt conflicts)
-- 🔄 **Continuous Collection**: Episode-based mode with independent saving
-- ⚙️ **Flexible Configuration**: YAML configuration file support for different scenarios
-
-## Installation
-
-### From Source
+### 从源码安装
 
 ```bash
 conda create -n forceumi python=3.10
 conda activate forceumi
-git clone https://github.com/Elycyx/ForceUMI.git
+git clone https://github.com/arctic126/ForceUMI.git
 cd ForceUMI
 pip install -e .
 ```
 
-This will install the package in editable mode along with all dependencies.
+---
 
-### Hardware Support
+### 硬件支持
 
-**For VR tracker-based pose sensing** (using PyTracker):
+#### 基于 VR Tracker 的位姿感知
 
 ```bash
-git clone https://github.com/Elycyx/PyTracker.git
+git clone https://github.com/arctic126/PyTracker.git
 cd PyTracker
 pip install -e .
 cd ..
 ```
-**Note**: Requires SteamVR and compatible VR hardware. See [PyTracker Setup Guide](docs/PYTRACKER_SETUP.md) for details.
 
-**For Sunrise force sensor** (using PyForce):
+**说明：**
+
+* 需要安装 **SteamVR**
+* 需要兼容的 VR 硬件（如 Vive Tracker 等）
+
+---
+
+#### Sunrise（宇立）六维力/力矩传感器（使用 PyForce）
 
 ```bash
-git clone https://github.com/Elycyx/PyForce.git
+git clone https://github.com/arctic126/PyForce.git
 cd PyForce
 pip install -e .
 cd ..
 ```
 
-**Note**: Requires Sunrise (宇立) 6-axis force/torque sensor connected via TCP/IP. See [PyForce Setup Guide](docs/PYFORCE_SETUP.md) for details.
+**说明：**
 
-## Quick Start
+* 需要 Sunrise（宇立）六轴力/力矩传感器
+* 通过 TCP/IP 与主机通信
 
-### 1. Launch GUI Collection Program
+---
+
+## 快速开始
+
+### 1. 启动 GUI 数据采集程序
 
 ```bash
 python -m forceumi.gui.cv_main_window
 ```
 
-Or use the example launcher:
+或使用示例启动脚本：
 
 ```bash
 python examples/launch_gui.py
 ```
 
-Or use the command-line tool:
+#### 键盘快捷键说明
+
+* `C`：连接设备
+* `D`：断开设备
+* `S`：开始采集
+* `E`：停止并保存当前 episode
+* `Q`：退出程序
+
+---
+
+### 2. 回放已采集的数据
+
+可对已采集的 episode 进行**同步回放与可视化**：
 
 ```bash
-forceumi-collect
+python examples/replay_episode.py data/episode_xx.hdf5
 ```
 
-**Keyboard Controls:**
-- `C` - Connect devices
-- `D` - Disconnect devices
-- `S` - Start collection
-- `E` - Stop/Save episode
-- `Q` - Quit application
+---
 
-### 2. Programmatic Usage
+### 3. 转换为 LeRobot 数据格式
 
-#### Single Camera (Backward Compatible)
+可将 ForceUMI 采集的数据转换为 **LeRobot** 所使用的数据格式，便于VLA训练。
 
-```python
-from forceumi.collector import DataCollector
-from forceumi.devices import Camera, PoseSensor, ForceSensor
-
-# Initialize devices
-camera = Camera(device_id=0)
-pose_sensor = PoseSensor()
-force_sensor = ForceSensor()
-
-# Create collector
-collector = DataCollector(
-    camera=camera,
-    pose_sensor=pose_sensor,
-    force_sensor=force_sensor,
-    save_dir="./data"
-)
-
-# Start episode
-collector.start_episode()
-
-# ... collect data ...
-
-# Stop and save
-collector.stop_episode()
-```
-
-#### Multi-Camera Setup
-
-```python
-from forceumi.collector import DataCollector
-from forceumi.devices import Camera, PoseSensor, ForceSensor
-
-# Initialize multiple cameras
-cameras = {
-    "wrist_camera": Camera(device_id=0, width=640, height=480, fps=30),
-    "static_camera": Camera(device_id=2, width=640, height=480, fps=30),
-}
-
-# Create collector with multiple cameras
-collector = DataCollector(
-    cameras=cameras,
-    pose_sensor=PoseSensor(),
-    force_sensor=ForceSensor(),
-    save_dir="./data"
-)
-
-# Start episode
-collector.start_episode()
-
-# ... collect data ...
-
-# Stop and save
-filepath = collector.stop_episode()
-```
-
-See [Multi-Camera Guide](docs/MULTICAM_GUIDE.md) for detailed documentation.
-
-### 3. Read HDF5 Data
-
-```python
-from forceumi.data import HDF5Manager
-
-# Load episode
-manager = HDF5Manager()
-data = manager.load_episode("data/episode_20250101_120000.hdf5")
-
-print(f"Images: {data['image'].shape}")
-print(f"States: {data['state'].shape}")
-print(f"Actions: {data['action'].shape}")
-print(f"Forces: {data['force'].shape}")
-print(f"Timestamps: {data['timestamp'].shape}")
-print(f"Metadata: {data['metadata']}")
-```
-
-### 4. Replay Collected Episodes
-
-Visualize previously collected episodes with synchronized playback:
+#### 安装 LeRobot（建议使用单独环境）
 
 ```bash
-# Using the command-line tool
-forceumi-replay data/episode_20250101_120000.hdf5
-
-# Or using Python script
-python examples/replay_episode.py data/episode_20250101_120000.hdf5
-```
-
-**Keyboard Controls:**
-- `Space` - Play/Pause
-- `Left/Right Arrow` - Step backward/forward (1 frame)
-- `Up/Down Arrow` - Increase/decrease playback speed
-- `Home` - Jump to start
-- `End` - Jump to end
-- `L` - Toggle loop
-- `H` - Toggle help display
-- `Q` or `ESC` - Quit
-
-The replay window shows:
-- **Main image display** with playback controls and status
-- **Force/Torque plots** showing the 6-axis sensor data history
-- **State/Action plots** showing pose and motion data
-
-### 5. Analyze Time Synchronization
-
-Check the quality of time synchronization in your collected data:
-
-```bash
-python analyze_timestamps.py data/episode_20250101_120000.hdf5
-```
-
-This tool provides:
-- Per-sensor frame rates and intervals
-- Inter-sensor delay analysis
-- Timing jitter statistics
-- Visualization plots of timestamp quality
-
-### 6. Convert to LeRobot Format
-
-Convert ForceUMI data to LeRobot format for robot learning:
-
-```bash
-# Install LeRobot (in a separate environment)
 conda create -n lerobot python=3.10
 conda activate lerobot
 pip install lerobot
+```
 
-# Convert a session (basic)
+#### 转换一个采集会话
+
+```bash
 python convert_forceumi_to_lerobot.py \
   --data_dir data/session_20250118_143000 \
   --output_repo_id username/forceumi-task1 \
-  --task "Pick and place task" \
+  --task "clean the basin" \
   --target_size 224 224
-
-# Fast conversion with parallel processing (5-10x faster)
-python convert_forceumi_to_lerobot.py \
-  --data_dir data/session_20250118_143000 \
-  --output_repo_id username/forceumi-task1 \
-  --task "Pick and place task" \
-  --target_size 224 224 \
-  --num_workers 8 \
-  --parallel_episodes 4
-
-# Convert and push to HuggingFace Hub
-python convert_forceumi_to_lerobot.py \
-  --data_dir data/session_20250118_143000 \
-  --output_repo_id username/forceumi-task1 \
-  --task "Pick and place task" \
-  --target_size 224 224 \
-  --skip_frames 5 \
-  --num_workers 8 \
-  --parallel_episodes 4 \
-  --push_to_hub
 ```
 
-See [LeRobot Conversion Guide](docs/LEROBOT_CONVERSION.md) and [Parallel Conversion Guide](docs/PARALLEL_CONVERSION.md) for complete documentation.
+参数说明：
 
-## Data Organization
+* `--data_dir`：ForceUMI 采集的 session 目录
+* `--output_repo_id`：LeRobot 数据集仓库 ID
+* `--task`：任务描述
+* `--target_size`：图像 resize 尺寸
 
-### Session-Based Storage (v0.3.2+)
+---
 
-Episodes are organized by session for better data management:
 
-```
-data/
-├── session_20250118_143000/
-│   ├── episode0.hdf5
-│   ├── episode1.hdf5
-│   ├── episode2.hdf5
-│   └── ...
-├── session_20250118_150530/
-│   ├── episode0.hdf5
-│   └── ...
-└── ...
-```
+## 数据格式说明
 
-- **Session**: Created when you first start collecting in a program run
-- **Episodes**: Numbered sequentially within each session (episode0, episode1, ...)
-- **Benefits**: Easy to identify and batch process episodes from the same data collection session
+每个 episode 以一个 **HDF5 文件**保存，结构如下：
 
-See [Session Organization Guide](SESSION_ORGANIZATION.md) for details.
-
-## Data Format
-
-Each episode is saved as an HDF5 file with the following structure:
-
-### Single Camera Format (Backward Compatible)
+### 单相机数据格式
 
 ```
 episode0.hdf5
-├── /image              # shape: (N, H, W, 3), dtype: uint8
-├── /state              # shape: (N, 7), dtype: float32
-├── /action             # shape: (N, 7), dtype: float32
-├── /force              # shape: (N, 6), dtype: float32
-├── /timestamp          # shape: (N,), dtype: float64 (main loop timestamp)
-├── /timestamp_camera   # shape: (N,), dtype: float64 (camera-specific)
-├── /timestamp_pose     # shape: (N,), dtype: float64 (pose-specific)
-├── /timestamp_force    # shape: (N,), dtype: float64 (force-specific)
-└── /metadata           # attributes: fps, duration, task_description, etc.
+├── /image              # (N, H, W, 3), uint8
+├── /state              # (N, 7), float32
+├── /action             # (N, 7), float32
+├── /force              # (N, 6), float32
+├── /timestamp          # (N,), float64（主循环时间戳）
+├── /timestamp_camera   # (N,), float64（相机时间戳）
+├── /timestamp_pose     # (N,), float64（位姿时间戳）
+├── /timestamp_force    # (N,), float64（力传感器时间戳）
+└── /metadata           # 属性：fps、duration、task_description 等
 ```
 
-### Multi-Camera Format
+---
+
+### 字段定义说明
+
+#### state（状态）
+
+Tracker 相对于**工作站（基坐标系）**的位姿：
 
 ```
-episode0.hdf5
-├── /image_wrist_camera         # shape: (N, H, W, 3), dtype: uint8
-├── /image_static_camera        # shape: (N, H, W, 3), dtype: uint8
-├── /state                      # shape: (N, 7), dtype: float32
-├── /action                     # shape: (N, 7), dtype: float32
-├── /force                      # shape: (N, 6), dtype: float32
-├── /timestamp                  # shape: (N,), dtype: float64 (main loop)
-├── /timestamp_camera_wrist_camera   # shape: (N,), dtype: float64
-├── /timestamp_camera_static_camera  # shape: (N,), dtype: float64
-├── /timestamp_pose             # shape: (N,), dtype: float64
-├── /timestamp_force            # shape: (N,), dtype: float64
-└── /metadata                   # attributes: camera_names, fps, duration, etc.
+[x, y, z, rx, ry, rz, gripper]
 ```
 
-**Note on Timestamps**: Each sensor has its own timestamp recorded immediately after data acquisition. This provides accurate temporal information for each modality and enables precise time synchronization analysis.
+* 位置 `(x, y, z)`：单位为 **米**
+* 姿态 `(rx, ry, rz)`：欧拉角，单位为 **弧度**
+* `gripper`：夹爪开合状态
 
-**Multi-Camera**: Each camera's images and timestamps are stored with the camera name as suffix (e.g., `image_{camera_name}`). Camera names are specified in the configuration file. See [Multi-Camera Guide](docs/MULTICAM_GUIDE.md) for details.
+  * `0.0` = 完全闭合
+  * `1.0` = 完全张开
+  * 始终为**绝对值**
 
-### Data Definitions:
+---
 
-- **state**: Tracker pose relative to station (base) coordinate system
-  - Format: `[x, y, z, rx, ry, rz, gripper]`
-  - Position (x,y,z) in meters
-  - Orientation (rx,ry,rz) as Euler angles in radians
-  - Gripper value (0.0 = closed, 1.0 = open, always absolute)
+#### action（动作）
 
-- **action**: Tracker pose relative to the first frame's coordinate system
-  - Format: `[x, y, z, rx, ry, rz, gripper]`
-  - Position and orientation are relative to the first frame
-  - First frame action is `[0, 0, 0, 0, 0, 0, gripper]`
-  - Subsequent frames express the pose transformation from the first frame
-  - Gripper value is always absolute (same as state)
-  
-- **force**: 6-axis force/torque data
-  - Format: `[fx, fy, fz, mx, my, mz]`
-  - Forces (fx,fy,fz) in Newtons
-  - Torques (mx,my,mz) in Newton-meters
+Tracker 相对于**第一帧坐标系**的位姿变化：
 
-**Note**: The gripper value in both state and action is always absolute (not delta)
-
-## Configuration File
-
-Create a `config.yaml` configuration file:
-
-### Single Camera Configuration
-
-```yaml
-devices:
-  cameras:
-    - name: "camera"
-      device_id: 0
-      width: 640
-      height: 480
-      fps: 30
-  
-  pose_sensor:
-    device_name: "tracker_1"
-    config_file: null
-    gripper_port: null
-  
-  force_sensor:
-    ip_addr: "192.168.0.108"
-    port: 4008
-    sample_rate: 100
-
-data:
-  save_dir: ./data
-  compression: gzip
-  compression_level: 4
-
-gui:
-  window_title: "ForceUMI Data Collection"
-  image_display_size: [640, 480]
-  force_plot_length: 500
+```
+[x, y, z, rx, ry, rz, gripper]
 ```
 
-### Multi-Camera Configuration
+* 第一帧的 action 固定为：
 
-```yaml
-devices:
-  cameras:
-    - name: "wrist_camera"
-      device_id: 0
-      width: 640
-      height: 480
-      fps: 30
-    - name: "static_camera"
-      device_id: 2
-      width: 640
-      height: 480
-      fps: 30
-  
-  pose_sensor:
-    device_name: "tracker_1"
-  
-  force_sensor:
-    ip_addr: "192.168.0.108"
-    port: 4008
+  ```
+  [0, 0, 0, 0, 0, 0, gripper]
+  ```
+* 后续帧表示相对于第一帧的位姿变化
+* 位置与姿态均为**相对量**
+* `gripper` 始终为绝对值（与 state 相同）
 
-data:
-  save_dir: ./data
-  auto_save: true
+---
 
-collector:
-  max_fps: 30.0
-  warmup_duration: 2.0
+#### force（力/力矩）
+
+六维力/力矩传感器数据：
+
+```
+[fx, fy, fz, mx, my, mz]
 ```
 
-See `examples/config_example.yaml` and `examples/config_multicam_example.yaml` for complete examples.
+* 力 `(fx, fy, fz)`：单位 **牛顿（N）**
+* 力矩 `(mx, my, mz)`：单位 **牛·米（Nm）**
 
-## Project Structure
+---
+
+## 项目结构
 
 ```
 forceumi/
-├── forceumi/              # Main package
-│   ├── __init__.py
-│   ├── devices/          # Device interfaces
-│   │   ├── __init__.py
-│   │   ├── base.py
+├── forceumi/              # 主程序包
+│   ├── devices/           # 设备接口
 │   │   ├── camera.py
 │   │   ├── pose_sensor.py
 │   │   └── force_sensor.py
-│   ├── data/             # Data management
-│   │   ├── __init__.py
+│   ├── data/              # 数据管理
 │   │   ├── hdf5_manager.py
 │   │   └── episode.py
-│   ├── gui/              # Graphical interface (OpenCV-based)
-│   │   ├── __init__.py
+│   ├── gui/               # OpenCV 图形界面
 │   │   ├── cv_main_window.py
 │   │   └── cv_visualizer.py
-│   ├── replay/           # Episode replay
-│   │   ├── __init__.py
-│   │   ├── player.py     # Episode player
-│   │   └── replay_window.py  # Replay GUI
-│   ├── utils/            # Utility functions
-│   │   ├── __init__.py
-│   │   └── transforms.py # Coordinate transformations
-│   ├── collector.py      # Collection manager
-│   └── config.py         # Configuration management
-├── examples/             # Example scripts
-├── tests/                # Tests
+│   ├── replay/            # 数据回放模块
+│   │   ├── player.py
+│   │   └── replay_window.py
+│   ├── utils/             # 工具函数
+│   │   └── transforms.py  # 坐标变换
+│   ├── collector.py       # 数据采集管理器
+│   └── config.py          # 配置管理
+├── examples/              # 示例脚本
+├── tests/                 # 测试代码
 ├── requirements.txt
 ├── setup.py
 └── README.md
 ```
 
-## Development Guide
-
-### Adding New Devices
-
-1. Create a new device class in `forceumi/devices/`
-2. Inherit from `BaseDevice` base class
-3. Implement required methods: `connect()`, `disconnect()`, `read()`, `is_connected()`
-
-```python
-from forceumi.devices.base import BaseDevice
-
-class MyDevice(BaseDevice):
-    def connect(self):
-        # Implement connection logic
-        pass
-    
-    def disconnect(self):
-        # Implement disconnection logic
-        pass
-    
-    def read(self):
-        # Implement read logic
-        return data
-    
-    def is_connected(self):
-        # Return connection status
-        return True
-```
-
-## GUI System
-
-The system uses **OpenCV's highgui** module for visualization instead of PyQt to avoid Qt backend conflicts between OpenCV and PyQt. This provides:
-
-- ✅ **No Qt Conflicts**: Uses OpenCV's built-in Qt backend
-- ✅ **Lightweight**: Minimal dependencies
-- ✅ **Cross-platform**: Works on Linux, macOS, and Windows
-- ✅ **Keyboard Control**: Simple keyboard shortcuts for all operations
-
-### GUI Windows
-
-1. **Main View**: Displays real-time camera feed with status overlay
-2. **Force Data**: Shows force and torque plots
-3. **State Data**: Displays current pose and gripper state
-4. **Control Panel**: Shows status and keyboard shortcuts
-
-### Technical Details
-
-- Uses `cv2.imshow()` for image display
-- Uses `matplotlib` with `Agg` backend for plot rendering
-- All plots are rendered to images and displayed via OpenCV
-- Event loop uses `cv2.waitKey()` for keyboard input
-
-
+---
